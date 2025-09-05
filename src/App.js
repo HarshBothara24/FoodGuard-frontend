@@ -2,8 +2,14 @@
 import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
 import './App.css';
 
-// Configuration
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// Enhanced Configuration with fallback
+const API_BASE = process.env.REACT_APP_API_URL || 
+                 (process.env.NODE_ENV === 'production' 
+                   ? 'https://foodguard-backend.onrender.com/api'
+                   : 'http://localhost:5000/api');
+
+console.log('🔗 API Base URL:', API_BASE);
+console.log('🌍 Environment:', process.env.NODE_ENV);
 
 // Auth Context
 const AuthContext = createContext();
@@ -22,32 +28,21 @@ const useAuth = () => {
     }
   }, []);
 
-  const fetchProfile = async (token) => {
-    try {
-      const response = await fetch(`${API_BASE}/profile`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data);
-      } else {
-        localStorage.removeItem('access_token');
-      }
-    } catch (error) {
-      console.error('Profile fetch error:', error);
-      localStorage.removeItem('access_token');
-    }
-    setLoading(false);
-  };
-
   const login = async (email, password) => {
     try {
+      console.log('🔐 Login attempt to:', `${API_BASE}/auth/login`);
+      
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include', // Include credentials for CORS
         body: JSON.stringify({ email, password })
       });
+
+      console.log('📡 Login response status:', response.status);
 
       if (response.ok) {
         const data = await response.json();
@@ -59,13 +54,15 @@ const useAuth = () => {
         return { success: false, error: error.error };
       }
     } catch (error) {
+      console.error('❌ Login error:', error);
       return { success: false, error: 'Connection failed' };
     }
   };
 
   const register = async (userData) => {
     try {
-      console.log('🚀 Attempting registration with data:', userData);
+      console.log('🚀 Registration attempt to:', `${API_BASE}/auth/register`);
+      console.log('🚀 Registration data:', userData);
       
       const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
@@ -73,6 +70,7 @@ const useAuth = () => {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
+        credentials: 'include', // Include credentials for CORS
         body: JSON.stringify(userData)
       });
 
@@ -93,6 +91,29 @@ const useAuth = () => {
       console.error('❌ Registration connection error:', error);
       return { success: false, error: 'Connection failed' };
     }
+  };
+
+  const fetchProfile = async (token) => {
+    try {
+      const response = await fetch(`${API_BASE}/profile`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        },
+        credentials: 'include' // Include credentials for CORS
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data);
+      } else {
+        localStorage.removeItem('access_token');
+      }
+    } catch (error) {
+      console.error('Profile fetch error:', error);
+      localStorage.removeItem('access_token');
+    }
+    setLoading(false);
   };
 
   const logout = () => {
@@ -302,8 +323,10 @@ const UserProfile = ({ user, onProfileUpdate, onBack }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
         },
+        credentials: 'include', // Include credentials for CORS
         body: JSON.stringify({ allergies })
       });
 
@@ -457,7 +480,11 @@ const FoodScannerApp = () => {
     try {
       const token = localStorage.getItem('access_token');
       const response = await fetch(`${API_BASE}/scan-history?per_page=5`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        },
+        credentials: 'include' // Include credentials for CORS
       });
 
       if (response.ok) {
@@ -503,7 +530,11 @@ const FoodScannerApp = () => {
       const token = localStorage.getItem('access_token');
       const response = await fetch(`${API_BASE}/analyze-food`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { 
+          'Authorization': `Bearer ${token}`
+          // Don't set Content-Type for FormData - browser will set it
+        },
+        credentials: 'include', // Include credentials for CORS
         body: formData,
       });
 
@@ -519,6 +550,7 @@ const FoodScannerApp = () => {
         alert(`Analysis failed: ${error.error || 'Unknown error'}`);
       }
     } catch (error) {
+      console.error('❌ Analysis error:', error);
       alert(`Connection error: ${error.message}`);
     }
     
