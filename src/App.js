@@ -8,8 +8,6 @@ const API_BASE = process.env.REACT_APP_API_URL ||
                    ? 'https://foodguard-backend.onrender.com/api'
                    : 'http://localhost:5000/api');
 
-console.log('🔗 API Base URL:', API_BASE);
-console.log('🌍 Environment:', process.env.NODE_ENV);
 
 // Auth Context
 const AuthContext = createContext();
@@ -38,7 +36,8 @@ const useAuth = () => {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        credentials: 'include', // Include credentials for CORS
+        // Remove credentials for now to avoid CORS issues
+        // credentials: 'include', 
         body: JSON.stringify({ email, password })
       });
 
@@ -70,7 +69,8 @@ const useAuth = () => {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        credentials: 'include', // Include credentials for CORS
+        // Remove credentials for now to avoid CORS issues
+        // credentials: 'include', 
         body: JSON.stringify(userData)
       });
 
@@ -99,8 +99,9 @@ const useAuth = () => {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
-        },
-        credentials: 'include' // Include credentials for CORS
+        }
+        // Remove credentials for now to avoid CORS issues
+        // credentials: 'include' 
       });
       
       if (response.ok) {
@@ -326,7 +327,8 @@ const UserProfile = ({ user, onProfileUpdate, onBack }) => {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         },
-        credentials: 'include', // Include credentials for CORS
+        // Remove credentials for now to avoid CORS issues
+        // credentials: 'include', 
         body: JSON.stringify({ allergies })
       });
 
@@ -455,9 +457,10 @@ const UserProfile = ({ user, onProfileUpdate, onBack }) => {
           >
             {loading ? '💾 Saving...' : '💾 Save Allergies'}
           </button>
+          </div>
         </div>
       </div>
-    </div>
+
   );
 };
 
@@ -483,8 +486,9 @@ const FoodScannerApp = () => {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
-        },
-        credentials: 'include' // Include credentials for CORS
+        }
+        // Remove credentials for now to avoid CORS issues
+        // credentials: 'include' 
       });
 
       if (response.ok) {
@@ -534,7 +538,8 @@ const FoodScannerApp = () => {
           'Authorization': `Bearer ${token}`
           // Don't set Content-Type for FormData - browser will set it
         },
-        credentials: 'include', // Include credentials for CORS
+        // Remove credentials for now to avoid CORS issues
+        // credentials: 'include', 
         body: formData,
       });
 
@@ -555,6 +560,34 @@ const FoodScannerApp = () => {
     }
     
     setIsAnalyzing(false);
+  };
+
+  const saveAllergies = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${API_BASE}/profile/allergies`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        },
+        // Remove credentials for now to avoid CORS issues
+        // credentials: 'include', 
+        body: JSON.stringify({ allergies })
+      });
+
+      if (response.ok) {
+        onProfileUpdate({ ...user, allergies });
+        alert('✅ Allergies updated successfully!');
+      } else {
+        alert('❌ Error updating allergies');
+      }
+    } catch (error) {
+      alert('❌ Connection error');
+    }
+    setLoading(false);
   };
 
   if (showProfile) {
