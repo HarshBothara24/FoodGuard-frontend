@@ -65,22 +65,32 @@ const useAuth = () => {
 
   const register = async (userData) => {
     try {
+      console.log('🚀 Attempting registration with data:', userData);
+      
       const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(userData)
       });
 
+      console.log('📡 Registration response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Registration successful:', data);
         localStorage.setItem('access_token', data.access_token);
         await fetchProfile(data.access_token);
         return { success: true };
       } else {
         const error = await response.json();
+        console.error('❌ Registration failed:', error);
         return { success: false, error: error.error };
       }
     } catch (error) {
+      console.error('❌ Registration connection error:', error);
       return { success: false, error: 'Connection failed' };
     }
   };
@@ -163,18 +173,38 @@ const RegisterForm = ({ onToggleMode }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('📝 Form submission started');
+    
+    // Validation
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
+      return;
+    }
+    
+    if (!formData.email.trim() || !formData.first_name.trim() || !formData.last_name.trim()) {
+      setError('All fields are required');
       return;
     }
     
     setLoading(true);
     setError('');
 
+    console.log('📤 Submitting registration data:', {
+      email: formData.email,
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      password: '[hidden]'
+    });
+
     const result = await register(formData);
+    
     if (!result.success) {
+      console.error('❌ Registration result:', result);
       setError(result.error);
+    } else {
+      console.log('✅ Registration successful');
     }
+    
     setLoading(false);
   };
 
