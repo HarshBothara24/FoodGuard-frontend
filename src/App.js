@@ -2,11 +2,34 @@
 import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
 import './App.css';
 
-// Enhanced Configuration with fallback
+// Enhanced Configuration with better error handling
 const API_BASE = process.env.REACT_APP_API_URL || 
                  (process.env.NODE_ENV === 'production' 
                    ? 'https://foodguard-backend.onrender.com/api'
                    : 'http://localhost:5000/api');
+
+// Add API health check function
+const checkAPIHealth = async () => {
+  try {
+    const response = await fetch(`${API_BASE.replace('/api', '')}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      mode: 'cors'
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ API Health Check:', data);
+      return data;
+    }
+  } catch (error) {
+    console.error('❌ API Health Check Failed:', error);
+  }
+  return null;
+};
 
 
 // Auth Context
@@ -30,18 +53,25 @@ const useAuth = () => {
     try {
       console.log('🔐 Login attempt to:', `${API_BASE}/auth/login`);
       
+      // Check API health first
+      const healthCheck = await checkAPIHealth();
+      if (!healthCheck) {
+        console.warn('⚠️ API health check failed, but continuing...');
+      }
+      
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Origin': window.location.origin
         },
-        // Remove credentials for now to avoid CORS issues
-        // credentials: 'include', 
+        mode: 'cors',
         body: JSON.stringify({ email, password })
       });
 
       console.log('📡 Login response status:', response.status);
+      console.log('📡 Login response headers:', Object.fromEntries(response.headers.entries()));
 
       if (response.ok) {
         const data = await response.json();
@@ -49,12 +79,32 @@ const useAuth = () => {
         await fetchProfile(data.access_token);
         return { success: true };
       } else {
-        const error = await response.json();
-        return { success: false, error: error.error };
+        const errorText = await response.text();
+        let errorMessage = 'Login failed';
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = `Server error: ${response.status}`;
+        }
+        
+        console.error('❌ Login error response:', errorText);
+        return { success: false, error: errorMessage };
       }
     } catch (error) {
-      console.error('❌ Login error:', error);
-      return { success: false, error: 'Connection failed' };
+      console.error('❌ Login network error:', error);
+      
+      // Better error messages for different scenarios
+      let errorMessage = 'Connection failed';
+      
+      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        errorMessage = 'Cannot connect to server. Please check your internet connection.';
+      } else if (error.message.includes('CORS')) {
+        errorMessage = 'CORS error - server configuration issue.';
+      }
+      
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -63,14 +113,20 @@ const useAuth = () => {
       console.log('🚀 Registration attempt to:', `${API_BASE}/auth/register`);
       console.log('🚀 Registration data:', userData);
       
+      // Check API health first
+      const healthCheck = await checkAPIHealth();
+      if (!healthCheck) {
+        console.warn('⚠️ API health check failed, but continuing...');
+      }
+      
       const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Origin': window.location.origin
         },
-        // Remove credentials for now to avoid CORS issues
-        // credentials: 'include', 
+        mode: 'cors',
         body: JSON.stringify(userData)
       });
 
@@ -83,13 +139,31 @@ const useAuth = () => {
         await fetchProfile(data.access_token);
         return { success: true };
       } else {
-        const error = await response.json();
-        console.error('❌ Registration failed:', error);
-        return { success: false, error: error.error };
+        const errorText = await response.text();
+        let errorMessage = 'Registration failed';
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = `Server error: ${response.status}`;
+        }
+        
+        console.error('❌ Registration error response:', errorText);
+        return { success: false, error: errorMessage };
       }
     } catch (error) {
-      console.error('❌ Registration connection error:', error);
-      return { success: false, error: 'Connection failed' };
+      console.error('❌ Registration network error:', error);
+      
+      let errorMessage = 'Connection failed';
+      
+      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        errorMessage = 'Cannot connect to server. Please check your internet connection.';
+      } else if (error.message.includes('CORS')) {
+        errorMessage = 'CORS error - server configuration issue.';
+      }
+      
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -98,16 +172,18 @@ const useAuth = () => {
       const response = await fetch(`${API_BASE}/profile`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-        // Remove credentials for now to avoid CORS issues
-        // credentials: 'include' 
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin
+        },
+        mode: 'cors'
       });
       
       if (response.ok) {
         const data = await response.json();
         setUser(data);
       } else {
+        console.error('Profile fetch failed:', response.status);
         localStorage.removeItem('access_token');
       }
     } catch (error) {
