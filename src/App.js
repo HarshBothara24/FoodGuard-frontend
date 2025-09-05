@@ -638,34 +638,6 @@ const FoodScannerApp = () => {
     setIsAnalyzing(false);
   };
 
-  const saveAllergies = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`${API_BASE}/profile/allergies`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        },
-        // Remove credentials for now to avoid CORS issues
-        // credentials: 'include', 
-        body: JSON.stringify({ allergies })
-      });
-
-      if (response.ok) {
-        onProfileUpdate({ ...user, allergies });
-        alert('✅ Allergies updated successfully!');
-      } else {
-        alert('❌ Error updating allergies');
-      }
-    } catch (error) {
-      alert('❌ Connection error');
-    }
-    setLoading(false);
-  };
-
   if (showProfile) {
     return (
       <UserProfile 
