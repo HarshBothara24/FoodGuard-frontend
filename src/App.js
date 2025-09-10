@@ -1,4 +1,4 @@
-// App.js - Complete Multi-Tenant React Frontend
+// App.js - Complete Multi-Tenant React Frontend with Nutrition Support
 import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
 import './App.css';
 
@@ -30,7 +30,6 @@ const checkAPIHealth = async () => {
   }
   return null;
 };
-
 
 // Auth Context
 const AuthContext = createContext();
@@ -364,6 +363,128 @@ const RegisterForm = ({ onToggleMode }) => {
   );
 };
 
+// NEW: Nutrition Facts Component
+const NutritionFacts = ({ nutrition, totalNutrition, confidence }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!nutrition && !totalNutrition) {
+    return (
+      <div className="nutrition-section">
+        <h4>📊 Nutritional Information</h4>
+        <p className="no-nutrition">No nutritional data available for this scan.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="nutrition-section">
+      <div className="nutrition-header">
+        <h4>📊 Nutritional Information</h4>
+        <button 
+          className="expand-btn"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? '▼ Hide Details' : '▶ Show Details'}
+        </button>
+      </div>
+      
+      {/* Always show basic nutrition summary */}
+      {totalNutrition && (
+        <div className="nutrition-summary">
+          <h5>🥗 Total Estimated (per 100g)</h5>
+          <div className="nutrition-grid">
+            <div className="nutrition-item calories">
+              <span className="nutrition-label">Calories</span>
+              <span className="nutrition-value">{Math.round(totalNutrition.calories)} kcal</span>
+            </div>
+            <div className="nutrition-item protein">
+              <span className="nutrition-label">Protein</span>
+              <span className="nutrition-value">{Math.round(totalNutrition.protein * 10) / 10}g</span>
+            </div>
+            <div className="nutrition-item carbs">
+              <span className="nutrition-label">Carbs</span>
+              <span className="nutrition-value">{Math.round(totalNutrition.carbs * 10) / 10}g</span>
+            </div>
+            <div className="nutrition-item fat">
+              <span className="nutrition-label">Fat</span>
+              <span className="nutrition-value">{Math.round(totalNutrition.fat * 10) / 10}g</span>
+            </div>
+            {totalNutrition.fiber > 0 && (
+              <div className="nutrition-item fiber">
+                <span className="nutrition-label">Fiber</span>
+                <span className="nutrition-value">{Math.round(totalNutrition.fiber * 10) / 10}g</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Expanded details */}
+          {expanded && (
+            <div className="nutrition-details">
+              {/* Vitamins */}
+              {totalNutrition.vitamins && Object.keys(totalNutrition.vitamins).length > 0 && (
+                <div className="vitamins-section">
+                  <h6>💊 Key Vitamins:</h6>
+                  <div className="nutrients-list">
+                    {Object.entries(totalNutrition.vitamins).map(([vitamin, value]) => (
+                      <span key={vitamin} className="nutrient-tag vitamin-tag">
+                        Vitamin {vitamin.toUpperCase()}: {Math.round(value * 10) / 10}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Minerals */}
+              {totalNutrition.minerals && Object.keys(totalNutrition.minerals).length > 0 && (
+                <div className="minerals-section">
+                  <h6>⚡ Key Minerals:</h6>
+                  <div className="nutrients-list">
+                    {Object.entries(totalNutrition.minerals).map(([mineral, value]) => (
+                      <span key={mineral} className="nutrient-tag mineral-tag">
+                        {mineral.charAt(0).toUpperCase() + mineral.slice(1)}: {Math.round(value * 10) / 10}mg
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Individual ingredient nutrition */}
+              {nutrition && nutrition.individual_ingredients && (
+                <div className="individual-nutrition">
+                  <h6>🔍 Per Ingredient:</h6>
+                  <div className="ingredient-nutrition-list">
+                    {Object.entries(nutrition.individual_ingredients).map(([ingredient, data]) => (
+                      <div key={ingredient} className="ingredient-nutrition-item">
+                        <strong>{ingredient}</strong>
+                        <div className="ingredient-nutrition-values">
+                          <span>Cal: {Math.round(data.nutrition_per_100g.calories)}</span>
+                          <span>P: {Math.round(data.nutrition_per_100g.protein * 10) / 10}g</span>
+                          <span>C: {Math.round(data.nutrition_per_100g.carbs * 10) / 10}g</span>
+                          <span>F: {Math.round(data.nutrition_per_100g.fat * 10) / 10}g</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {confidence && (
+            <div className="nutrition-confidence">
+              <small>🤖 AI Nutritional Estimate - Confidence: {(confidence * 100).toFixed(1)}%</small>
+            </div>
+          )}
+        </div>
+      )}
+      
+      <div className="nutrition-disclaimer">
+        <small>⚠️ Nutritional values are AI estimates based on detected ingredients. Actual values may vary by preparation method, portion size, and ingredient brands.</small>
+      </div>
+    </div>
+  );
+};
+
 // User Profile Management Component
 const UserProfile = ({ user, onProfileUpdate, onBack }) => {
   const [allergies, setAllergies] = useState(user.allergies || []);
@@ -403,8 +524,6 @@ const UserProfile = ({ user, onProfileUpdate, onBack }) => {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         },
-        // Remove credentials for now to avoid CORS issues
-        // credentials: 'include', 
         body: JSON.stringify({ allergies })
       });
 
@@ -533,10 +652,9 @@ const UserProfile = ({ user, onProfileUpdate, onBack }) => {
           >
             {loading ? '💾 Saving...' : '💾 Save Allergies'}
           </button>
-          </div>
         </div>
       </div>
-
+    </div>
   );
 };
 
@@ -547,6 +665,7 @@ const FoodScannerApp = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [scanResult, setScanResult] = useState(null);
+  const [nutritionData, setNutritionData] = useState(null); // NEW: Nutrition state
   const [showProfile, setShowProfile] = useState(false);
   const [scanHistory, setScanHistory] = useState([]);
   const fileInputRef = useRef(null);
@@ -563,8 +682,6 @@ const FoodScannerApp = () => {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         }
-        // Remove credentials for now to avoid CORS issues
-        // credentials: 'include' 
       });
 
       if (response.ok) {
@@ -596,9 +713,11 @@ const FoodScannerApp = () => {
       reader.onload = (e) => setImagePreview(e.target.result);
       reader.readAsDataURL(file);
       setScanResult(null);
+      setNutritionData(null); // NEW: Reset nutrition data
     }
   };
 
+  // UPDATED: Enhanced analyzeImage function
   const analyzeImage = async () => {
     if (!selectedImage) return;
     
@@ -612,16 +731,15 @@ const FoodScannerApp = () => {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`
-          // Don't set Content-Type for FormData - browser will set it
         },
-        // Remove credentials for now to avoid CORS issues
-        // credentials: 'include', 
         body: formData,
       });
 
       if (response.ok) {
         const result = await response.json();
+        console.log('🔍 Analysis result:', result); // Debug log
         setScanResult(result);
+        setNutritionData(result.nutrition); // NEW: Store nutrition data
         
         // Update user's total scans count and reload history
         setUser(prev => ({ ...prev, total_scans: (prev.total_scans || 0) + 1 }));
@@ -707,14 +825,14 @@ const FoodScannerApp = () => {
                 {isAnalyzing ? (
                   <>🔍 Analyzing... Please wait</>
                 ) : (
-                  <>🔍 Analyze for Allergens</>
+                  <>🔍 Analyze for Allergens & Nutrition</>
                 )}
               </button>
             </div>
           </div>
         </div>
 
-        {/* Analysis Results */}
+        {/* UPDATED: Enhanced Analysis Results */}
         {scanResult && (
           <div className="results-section">
             <div className={`safety-status ${scanResult.is_safe ? 'safe' : 'warning'}`}>
@@ -731,6 +849,12 @@ const FoodScannerApp = () => {
                 </p>
                 {scanResult.confidence_score && (
                   <small>Analysis confidence: {(scanResult.confidence_score * 100).toFixed(1)}%</small>
+                )}
+                {/* NEW: Nutrition availability indicator */}
+                {scanResult.nutrition_available && (
+                  <div className="nutrition-available-badge">
+                    📊 Nutritional information available
+                  </div>
                 )}
               </div>
             </div>
@@ -759,6 +883,15 @@ const FoodScannerApp = () => {
               </div>
             )}
 
+            {/* NEW: Nutrition Information */}
+            {nutritionData && (
+              <NutritionFacts 
+                nutrition={nutritionData}
+                totalNutrition={nutritionData.total_estimated}
+                confidence={nutritionData.confidence}
+              />
+            )}
+
             {/* Detected Ingredients */}
             {scanResult.ingredients && scanResult.ingredients.length > 0 && (
               <div className="ingredients-section">
@@ -770,6 +903,11 @@ const FoodScannerApp = () => {
                       <span className="ingredient-confidence">
                         {(ingredient.confidence * 100).toFixed(0)}%
                       </span>
+                      {/* NEW: Show if nutrition data available for this ingredient */}
+                      {nutritionData && nutritionData.individual_ingredients && 
+                       nutritionData.individual_ingredients[ingredient.name] && (
+                        <span className="nutrition-indicator">📊</span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -802,6 +940,10 @@ const FoodScannerApp = () => {
                     {scan.ingredients?.slice(0, 3).map(ing => ing.name).join(', ')}
                     {scan.ingredients?.length > 3 && '...'}
                   </div>
+                  {/* NEW: Show nutrition indicator in history */}
+                  {scan.has_nutrition && (
+                    <div className="history-nutrition">📊 Nutrition data</div>
+                  )}
                 </div>
               ))}
             </div>
@@ -811,6 +953,7 @@ const FoodScannerApp = () => {
 
       <footer className="app-footer">
         <p>⚠️ This tool is for informational purposes only. Always verify with food labels and restaurant staff for severe allergies.</p>
+        <p>📊 Nutritional information is AI-generated and should be used as estimates only.</p>
       </footer>
     </div>
   );
@@ -824,11 +967,12 @@ const AuthWrapper = () => {
     <div className="auth-container">
       <div className="auth-hero">
         <h1>🍽️ FoodGuard AI</h1>
-        <p>AI-Powered Personal Food Allergen Detection</p>
+        <p>AI-Powered Personal Food Allergen Detection with Nutrition Analysis</p>
         <div className="hero-features">
           <div className="feature">📸 Scan any food</div>
           <div className="feature">🤖 AI ingredient detection</div>
           <div className="feature">⚠️ Personal allergen alerts</div>
+          <div className="feature">📊 Nutritional analysis</div>
         </div>
       </div>
       
@@ -851,7 +995,7 @@ function App() {
         <div className="loading-content">
           <div className="loading-spinner"></div>
           <h2>🍽️ FoodGuard AI</h2>
-          <p>Loading your personalized food safety assistant...</p>
+          <p>Loading your personalized food safety and nutrition assistant...</p>
         </div>
       </div>
     );
