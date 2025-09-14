@@ -472,14 +472,14 @@ const NutritionFacts = ({ nutrition, totalNutrition, confidence }) => {
           
           {confidence && (
             <div className="nutrition-confidence">
-              <small>🤖 AI Nutritional Estimate - Confidence: {(confidence * 100).toFixed(1)}%</small>
+              <small>🤖 Nutritional Estimate - Confidence: {(confidence * 100).toFixed(1)}%</small>
             </div>
           )}
         </div>
       )}
       
       <div className="nutrition-disclaimer">
-        <small>⚠️ Nutritional values are AI estimates based on detected ingredients. Actual values may vary by preparation method, portion size, and ingredient brands.</small>
+        <small>⚠️ Nutritional values are estimates based on detected ingredients. Actual values may vary by preparation method, portion size, and ingredient brands.</small>
       </div>
     </div>
   );
